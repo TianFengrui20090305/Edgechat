@@ -34,6 +34,8 @@ const inviteUserId = ref('');
 const showQuickActions = ref(false);
 const quickActionMode = ref('');
 const showMemberPanel = ref(true);
+const isMobileViewport = ref(false);
+const mobileView = ref('list');
 let roomSocket = null;
 
 const createGroupForm = reactive({
@@ -57,6 +59,12 @@ const canManageActiveRoom = computed(
   () => activeRoom.value && activeRoom.value.kind !== 'dm' && activeRoom.value.canManage
 );
 const hasManageLayer = computed(() => Boolean(activeRoom.value && activeRoom.value.kind !== 'dm'));
+const showSidebarPane = computed(() => !isMobileViewport.value || mobileView.value === 'list');
+const showChatPane = computed(() => !isMobileViewport.value || mobileView.value === 'chat');
+const chatAppClasses = computed(() => ({
+  'chat-app--mobile-list': isMobileViewport.value && mobileView.value === 'list',
+  'chat-app--mobile-chat': isMobileViewport.value && mobileView.value === 'chat'
+}));
 const availableInviteUsers = computed(() => {
   const memberIds = new Set(groupMembers.value.map((member) => Number(member.id)));
   return users.value.filter((user) => !memberIds.has(Number(user.id)));
@@ -203,6 +211,35 @@ function toggleMemberPanel() {
   showMemberPanel.value = !showMemberPanel.value;
 }
 
+function syncViewportState() {
+  const nextIsMobile = window.innerWidth <= 960;
+  if (nextIsMobile === isMobileViewport.value) {
+    return;
+  }
+
+  isMobileViewport.value = nextIsMobile;
+  if (nextIsMobile) {
+    mobileView.value = activeRoom.value ? 'chat' : 'list';
+    showMemberPanel.value = false;
+  } else {
+    mobileView.value = 'chat';
+    showMemberPanel.value = Boolean(activeRoom.value && activeRoom.value.kind !== 'dm');
+  }
+}
+
+function openConversationView() {
+  if (isMobileViewport.value) {
+    mobileView.value = 'chat';
+  }
+}
+
+function returnToConversationList() {
+  if (isMobileViewport.value) {
+    mobileView.value = 'list';
+    showMemberPanel.value = false;
+  }
+}
+
 async function refreshSidebar() {
   sidebarLoading.value = true;
   try {
@@ -250,16 +287,19 @@ async function selectDm(dm) {
 async function openConversation(item) {
   if (item.kind === 'dm') {
     await selectDm(item.source);
+    openConversationView();
     return;
   }
 
   await selectChannel(item.source);
+  openConversationView();
 }
 
 async function openDmWithUser(user) {
   const payload = await api.openDm(user.id);
   await refreshSidebar();
   await selectDm(payload.dm);
+  openConversationView();
   resetQuickActions();
 }
 
@@ -488,6 +528,7 @@ async function deleteGroup() {
     activeRoom.value = null;
     messages.value = [];
     groupMembers.value = [];
+    returnToConversationList();
     await refreshSidebar();
   } catch (currentError) {
     error.value = currentError.message;
@@ -499,9 +540,10 @@ async function bootstrap() {
   error.value = '';
   try {
     await refreshSidebar();
+    syncViewportState();
     const preferredRoom = conversationItems.value[0] || null;
 
-    if (preferredRoom) {
+    if (preferredRoom && !isMobileViewport.value) {
       await openConversation(preferredRoom);
     }
   } catch (currentError) {
@@ -521,20 +563,27 @@ watch(activeRoomKey, async (roomKey) => {
     return;
   }
 
-  showMemberPanel.value = activeRoom.value?.kind !== 'dm';
+  showMemberPanel.value = activeRoom.value?.kind !== 'dm' && !isMobileViewport.value;
   await loadMessages();
   await loadMembers();
   connectSocket();
 });
 
-onMounted(bootstrap);
-onBeforeUnmount(disconnectSocket);
+onMounted(() => {
+  syncViewportState();
+  window.addEventListener('resize', syncViewportState);
+  bootstrap();
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncViewportState);
+  disconnectSocket();
+});
 </script>
 
 <template>
   <div class="page-shell chat-shell">
-    <div class="chat-app">
-      <aside class="chat-sidebar chat-sidebar--wechat">
+    <div class="chat-app" :class="chatAppClasses">
+      <aside v-if="showSidebarPane" class="chat-sidebar chat-sidebar--wechat">
         <div class="chat-sidebar__topbar">
           <div class="chat-sidebar__identity">
             <UiAvatar
@@ -668,9 +717,18 @@ onBeforeUnmount(disconnectSocket);
         </div>
       </aside>
 
-      <main class="chat-stage">
+      <main v-if="showChatPane" class="chat-stage" :class="{ 'chat-stage--mobile': isMobileViewport }">
         <header class="chat-stage__header">
-          <div>
+          <div class="chat-stage__header-main">
+            <UiButton
+              v-if="isMobileViewport"
+              variant="ghost"
+              size="sm"
+              class="chat-stage__back-btn"
+              @click="returnToConversationList"
+            >
+              返回列表
+            </UiButton>
             <h1>{{ roomLabel(activeRoom) }}</h1>
             <p>{{ activeRoomSubtitle }}</p>
           </div>
