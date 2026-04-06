@@ -1,0 +1,44 @@
+name = "cfchat"
+main = "worker/src/index.js"
+compatibility_date = "2026-04-05"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ADMIN_USERNAMES = "admin"
+MESSAGE_RETENTION_DAYS = "7"
+ALLOWED_FILE_TYPES = "image/,video/,application/pdf,text/"
+MAX_FILE_SIZE = "20971520"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cfchat-db"
+database_id = "4a387578-8dec-4f65-a195-9a4a92daab69"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "3071aae6b1bc4002912b19a0e5b2fe5b"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "cfchat-files"
+
+[[durable_objects.bindings]]
+name = "CHANNEL_ROOM"
+class_name = "ChannelRoom"
+
+[[durable_objects.bindings]]
+name = "SCHEDULER"
+class_name = "Scheduler"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChannelRoom", "Scheduler"]
+
+[assets]
+directory = "./frontend/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/files/*"]
+
+[triggers]
+# Cloudflare Cron 按 UTC 执行；19:00 UTC = 北京时间每天 03:00
+crons = ["0 19 * * *"]
