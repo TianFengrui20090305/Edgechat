@@ -2,20 +2,29 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api.js';
+import store from '../store.js';
 import UiButton from '../components/ui/Button.vue';
 import UiSurface from '../components/ui/Surface.vue';
 
 const router = useRouter();
 const loading = ref(false);
 const error = ref('');
+const savingSite = ref(false);
+const iconUploading = ref(false);
+const inviteSubmitting = ref(false);
 const users = ref([]);
 const channels = ref([]);
 const dms = ref([]);
+const invites = ref([]);
+const iconFileInputEl = ref(null);
+const copiedInviteId = ref(0);
 
-const createChannelForm = reactive({
-  name: '',
-  description: '',
-  kind: 'public'
+const siteForm = reactive({
+  siteName: 'CF Chat',
+  siteIconUrl: ''
+});
+const inviteForm = reactive({
+  note: ''
 });
 
 const publicGroupCount = computed(
@@ -33,6 +42,10 @@ async function loadOverview() {
     users.value = payload.users;
     channels.value = payload.channels;
     dms.value = payload.dms;
+    siteForm.siteName = payload.site?.siteName || 'CF Chat';
+    siteForm.siteIconUrl = payload.site?.siteIconUrl || '';
+    const invitePayload = await api.listAdminRegisterLinks();
+    invites.value = invitePayload.invites || [];
   } catch (currentError) {
     error.value = currentError.message;
   } finally {
@@ -40,12 +53,91 @@ async function loadOverview() {
   }
 }
 
-async function submitChannel() {
-  await api.createChannel(createChannelForm);
-  createChannelForm.name = '';
-  createChannelForm.description = '';
-  createChannelForm.kind = 'public';
-  await loadOverview();
+function openIconPicker() {
+  iconFileInputEl.value?.click();
+}
+
+async function uploadSiteIcon(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  iconUploading.value = true;
+  error.value = '';
+  try {
+    const payload = await api.uploadFile(file);
+    siteForm.siteIconUrl = payload.file.url;
+  } catch (currentError) {
+    error.value = currentError.message;
+  } finally {
+    iconUploading.value = false;
+    event.target.value = '';
+  }
+}
+
+async function saveSiteSettings() {
+  savingSite.value = true;
+  error.value = '';
+  try {
+    const payload = await api.updateAdminSiteSettings(siteForm);
+    siteForm.siteName = payload.site.siteName;
+    siteForm.siteIconUrl = payload.site.siteIconUrl;
+    store.setSite(payload.site);
+  } catch (currentError) {
+    error.value = currentError.message;
+  } finally {
+    savingSite.value = false;
+  }
+}
+
+function inviteLinkUrl(token) {
+  return new URL(`/register/${token}`, window.location.origin).toString();
+}
+
+async function createInvite() {
+  inviteSubmitting.value = true;
+  error.value = '';
+  try {
+    const payload = await api.createAdminRegisterLink(inviteForm);
+    invites.value = [payload.invite, ...invites.value];
+    inviteForm.note = '';
+  } catch (currentError) {
+    error.value = currentError.message;
+  } finally {
+    inviteSubmitting.value = false;
+  }
+}
+
+async function copyInvite(invite) {
+  try {
+    await navigator.clipboard.writeText(inviteLinkUrl(invite.token));
+    copiedInviteId.value = invite.id;
+    window.setTimeout(() => {
+      if (copiedInviteId.value === invite.id) {
+        copiedInviteId.value = 0;
+      }
+    }, 1600);
+  } catch {
+    error.value = '复制失败，请手动复制链接';
+  }
+}
+
+async function revokeInvite(invite) {
+  if (!window.confirm('确认停用这个注册链接吗？')) {
+    return;
+  }
+
+  try {
+    await api.revokeAdminRegisterLink(invite.id);
+    invites.value = invites.value.map((item) =>
+      item.id === invite.id
+        ? { ...item, deletedAt: new Date().toISOString(), isAvailable: false }
+        : item
+    );
+  } catch (currentError) {
+    error.value = currentError.message;
+  }
 }
 
 onMounted(loadOverview);
@@ -86,23 +178,89 @@ onMounted(loadOverview);
 
       <section class="grid-two">
         <UiSurface class="panel">
-          <h3 class="panel-title">创建官方群组</h3>
+          <h3 class="panel-title">站点外观</h3>
           <label class="field">
-            <span>群组名称</span>
-            <input v-model.trim="createChannelForm.name" />
+            <span>站点名称</span>
+            <input v-model.trim="siteForm.siteName" placeholder="例如：Edgechat" />
           </label>
           <label class="field">
-            <span>描述</span>
-            <textarea v-model.trim="createChannelForm.description" />
+            <span>站点图标 URL</span>
+            <input v-model.trim="siteForm.siteIconUrl" placeholder="/files/... 或 https://..." />
           </label>
+          <div class="inline-actions">
+            <input
+              ref="iconFileInputEl"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="uploadSiteIcon"
+            />
+            <UiButton variant="secondary" size="sm" :disabled="iconUploading" @click="openIconPicker">
+              {{ iconUploading ? '上传中...' : '上传图标' }}
+            </UiButton>
+            <UiButton :disabled="savingSite" @click="saveSiteSettings">
+              {{ savingSite ? '保存中...' : '保存设置' }}
+            </UiButton>
+          </div>
+          <div class="admin-site-preview">
+            <div class="admin-site-preview__icon">
+              <img v-if="siteForm.siteIconUrl" :src="siteForm.siteIconUrl" alt="site icon" />
+              <span v-else>{{ siteForm.siteName.slice(0, 1) || 'C' }}</span>
+            </div>
+            <div class="admin-site-preview__meta">
+              <strong>{{ siteForm.siteName || 'CF Chat' }}</strong>
+              <span>{{ siteForm.siteIconUrl || '未设置图标 URL' }}</span>
+            </div>
+          </div>
+        </UiSurface>
+
+        <UiSurface class="panel">
+          <h3 class="panel-title">注册链接</h3>
           <label class="field">
-            <span>可见性</span>
-            <select v-model="createChannelForm.kind">
-              <option value="public">公开群组</option>
-              <option value="private">私有群组</option>
-            </select>
+            <span>链接备注</span>
+            <input v-model.trim="inviteForm.note" placeholder="例如：四月新成员入口" />
           </label>
-          <UiButton block @click="submitChannel">创建群组</UiButton>
+          <UiButton block :disabled="inviteSubmitting" @click="createInvite">
+            {{ inviteSubmitting ? '创建中...' : '创建一次性注册链接' }}
+          </UiButton>
+
+          <div class="stack">
+            <div v-if="!invites.length" class="muted">还没有注册链接。</div>
+            <UiSurface
+              v-for="invite in invites"
+              :key="invite.id"
+              tone="soft"
+              class="admin-invite-card"
+            >
+              <div class="admin-invite-card__head">
+                <div>
+                  <strong>{{ invite.note || '未命名注册链接' }}</strong>
+                  <p>
+                    {{ invite.isAvailable ? '可用，限 1 人注册' : invite.deletedAt ? '已停用' : '已使用' }}
+                  </p>
+                </div>
+                <div class="inline-actions">
+                  <UiButton variant="secondary" size="sm" @click="copyInvite(invite)">
+                    {{ copiedInviteId === invite.id ? '已复制' : '复制链接' }}
+                  </UiButton>
+                  <UiButton
+                    v-if="invite.isAvailable"
+                    variant="destructive"
+                    size="sm"
+                    @click="revokeInvite(invite)"
+                  >
+                    停用
+                  </UiButton>
+                </div>
+              </div>
+              <div class="admin-invite-card__url">{{ inviteLinkUrl(invite.token) }}</div>
+              <div class="admin-invite-card__meta">
+                <span>创建者：{{ invite.creatorDisplayName }}</span>
+                <span>创建时间：{{ new Date(invite.createdAt).toLocaleString() }}</span>
+                <span v-if="invite.consumerDisplayName">使用者：{{ invite.consumerDisplayName }}</span>
+              </div>
+            </UiSurface>
+          </div>
         </UiSurface>
 
         <UiSurface class="panel">

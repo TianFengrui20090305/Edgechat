@@ -317,47 +317,6 @@ export function registerChannelRoutes(app) {
     return c.json({ ok: true });
   });
 
-  app.post('/api/admin/channels', async (c) => {
-    const session = c.get('session');
-    const payload = await parseJsonRequest(c.req.raw);
-    const name = String(payload.name || '').trim();
-    if (!name) {
-      return errorResponse('频道名称不能为空');
-    }
-
-    const description = String(payload.description || '').trim();
-    const kind = payload.kind === 'private' ? 'private' : 'public';
-    const result = await c.env.DB.prepare(
-      `INSERT INTO channels (name, description, kind, created_by)
-       VALUES (?, ?, ?, ?)`
-    )
-      .bind(name, description, kind, session.userId)
-      .run()
-      .catch((error) => {
-        if (String(error.message).includes('UNIQUE')) {
-          throw new Error('频道名称已存在');
-        }
-        throw error;
-      });
-
-    const channelId = Number(result.meta.last_row_id);
-    await c.env.DB.prepare(
-      `INSERT OR IGNORE INTO channel_members (channel_id, user_id, role, invited_by)
-       VALUES (?, ?, 'owner', ?)`
-    )
-      .bind(channelId, session.userId, session.userId)
-      .run();
-
-    return c.json({
-      channel: {
-        id: channelId,
-        name,
-        description,
-        kind
-      }
-    });
-  });
-
   app.get('/api/admin/channels', async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT

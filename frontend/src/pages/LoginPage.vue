@@ -1,8 +1,9 @@
 <script setup>
-import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import store from '../store.js';
 
+const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
 const error = ref('');
@@ -10,6 +11,7 @@ const form = reactive({
   username: '',
   password: ''
 });
+const registered = computed(() => route.query.registered === '1');
 
 async function submit() {
   loading.value = true;
@@ -29,10 +31,11 @@ async function submit() {
   <div class="page-shell login-shell">
     <div class="page-card login-card">
       <p class="tag">Cloudflare Workers + Vue</p>
-      <h1 class="title">CF Chat</h1>
+      <h1 class="title">{{ store.site.siteName }}</h1>
       <p class="subtitle">
         管理员创建账号后即可登录。前端保持轻量，后端按频道与私信分房间处理实时消息。
       </p>
+      <p v-if="registered" class="muted">注册成功，现在可以使用新账号登录。</p>
 
       <form @submit.prevent="submit">
         <label class="field">

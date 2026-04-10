@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import store from './store.js';
 import LoginPage from './pages/LoginPage.vue';
+import RegisterPage from './pages/RegisterPage.vue';
 import ChatPage from './pages/ChatPage.vue';
 import AdminPage from './pages/AdminPage.vue';
 import AdminUsersPage from './pages/AdminUsersPage.vue';
@@ -16,6 +17,12 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginPage,
+      meta: { public: true, transition: 'page' }
+    },
+    {
+      path: '/register/:token',
+      name: 'register',
+      component: RegisterPage,
       meta: { public: true, transition: 'page' }
     },
     {

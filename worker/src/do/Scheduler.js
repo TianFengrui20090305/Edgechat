@@ -18,10 +18,8 @@ export class Scheduler {
   async alarm() {
     const retentionDays = Number(this.env.MESSAGE_RETENTION_DAYS || 7);
     await this.env.DB.prepare(
-      `UPDATE messages
-       SET deleted_at = CURRENT_TIMESTAMP
-       WHERE deleted_at IS NULL
-         AND created_at < datetime('now', ?)`
+      `DELETE FROM messages
+       WHERE created_at < datetime('now', ?)`
     )
       .bind(`-${retentionDays} day`)
       .run();

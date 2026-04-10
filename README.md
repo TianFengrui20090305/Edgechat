@@ -24,7 +24,7 @@ EdgeChat 是一个运行在 Cloudflare Workers 上的团队聊天系统。它提
 - 后台分为用户管理、消息查看、网站设置三个子页面
 - 支持消息检索、成员邀请、文件发送
 - 静态资源由 Cloudflare Static Assets 托管
-- 通过 Cron Trigger 定时清理过期消息
+- 通过 Cron Trigger 定时硬删除过期消息
 
 ## 技术栈
 
@@ -138,7 +138,7 @@ MAX_FILE_SIZE = "20971520"
 
 - 静态资源不再手动 `ASSETS.fetch()`，由平台自动处理
 - `run_worker_first` 只作用于 `"/api/*"` 和 `"/files/*"`
-- 消息清理改为原生 `scheduled`，不再通过每个请求触发调度型 DO
+- 消息清理改为原生 `scheduled`，并对过期消息执行硬删除，不再通过每个请求触发调度型 DO
 - `/files/:key` 返回 `Cache-Control`、`ETag` 和 `Last-Modified`
 - 聊天页初始化聚合为 `/api/bootstrap`
 - 后台概览聚合为 `/api/admin/overview`

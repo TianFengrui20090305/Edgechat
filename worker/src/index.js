@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createSession, deleteSession, getSession, hashPassword, verifyPassword } from './auth.js';
-import { getUserByUsername } from './db.js';
+import { getSiteSettings, getUserByUsername } from './db.js';
 import { adminMiddleware, authMiddleware } from './middleware.js';
 import { registerAdminRoutes } from './api/admin.js';
 import { registerChannelRoutes } from './api/channels.js';
@@ -21,6 +21,102 @@ app.use('/api/*', cors({
 }));
 
 app.get('/api/health', (c) => c.json({ ok: true }));
+
+app.get('/api/site', async (c) => {
+  const site = await getSiteSettings(c.env.DB);
+  return c.json({ site });
+});
+
+app.get('/api/register-links/:token', async (c) => {
+  const token = String(c.req.param('token') || '').trim();
+  if (!token) {
+    return errorResponse('注册链接不存在', 404);
+  }
+
+  const site = await getSiteSettings(c.env.DB);
+  const invite = await c.env.DB.prepare(
+    `SELECT id, note, created_at, consumed_at, deleted_at
+     FROM registration_invites
+     WHERE token = ?
+     LIMIT 1`
+  )
+    .bind(token)
+    .all();
+
+  const row = invite.results[0];
+  if (!row || row.deleted_at || row.consumed_at) {
+    return errorResponse('注册链接已失效', 404);
+  }
+
+  return c.json({
+    site,
+    invite: {
+      note: row.note || '',
+      createdAt: row.created_at
+    }
+  });
+});
+
+app.post('/api/register-links/:token/register', async (c) => {
+  const token = String(c.req.param('token') || '').trim();
+  const payload = await parseJsonRequest(c.req.raw);
+  const username = String(payload.username || '').trim();
+  const password = String(payload.password || '');
+  const displayName = String(payload.displayName || username).trim();
+
+  if (!token) {
+    return errorResponse('注册链接不存在', 404);
+  }
+  if (!username || !password) {
+    return errorResponse('用户名和密码不能为空');
+  }
+
+  const inviteQuery = await c.env.DB.prepare(
+    `SELECT id, consumed_at, deleted_at
+     FROM registration_invites
+     WHERE token = ?
+     LIMIT 1`
+  )
+    .bind(token)
+    .all();
+
+  const invite = inviteQuery.results[0];
+  if (!invite || invite.deleted_at || invite.consumed_at) {
+    return errorResponse('注册链接已失效', 400);
+  }
+
+  const hashed = await hashPassword(password);
+  const result = await c.env.DB.prepare(
+    `INSERT INTO users (
+       username,
+       display_name,
+       password_hash,
+       password_salt,
+       registration_invite_id
+     ) VALUES (?, ?, ?, ?, ?)`
+  )
+    .bind(username, displayName, hashed.hash, hashed.salt, Number(invite.id))
+    .run()
+    .catch((error) => {
+      if (String(error.message).includes('UNIQUE')) {
+        throw new Error('用户名已存在或注册链接已被使用');
+      }
+      throw error;
+    });
+
+  await c.env.DB.prepare(
+    `UPDATE registration_invites
+     SET consumed_by_user_id = ?,
+         consumed_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+       AND consumed_at IS NULL
+       AND deleted_at IS NULL`
+  )
+    .bind(Number(result.meta.last_row_id), Number(invite.id))
+    .run();
+
+  return c.json({ ok: true });
+});
 
 app.post('/api/auth/login', async (c) => {
   const payload = await parseJsonRequest(c.req.raw);
@@ -341,10 +437,8 @@ app.onError((error) => errorResponse(error.message || '服务器开小差了', 5
 async function cleanupExpiredMessages(env) {
   const retentionDays = Number(env.MESSAGE_RETENTION_DAYS || 7);
   await env.DB.prepare(
-    `UPDATE messages
-     SET deleted_at = CURRENT_TIMESTAMP
-     WHERE deleted_at IS NULL
-       AND created_at < datetime('now', ?)`
+    `DELETE FROM messages
+     WHERE created_at < datetime('now', ?)`
   )
     .bind(`-${retentionDays} day`)
     .run();

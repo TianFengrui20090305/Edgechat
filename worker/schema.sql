@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   password_salt TEXT NOT NULL,
   avatar_key TEXT,
+  registration_invite_id INTEGER UNIQUE,
   is_disabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,6 +53,31 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (sender_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS site_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS registration_invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT NOT NULL UNIQUE,
+  note TEXT NOT NULL DEFAULT '',
+  created_by INTEGER,
+  consumed_by_user_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  consumed_at TEXT,
+  deleted_at TEXT,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  FOREIGN KEY (consumed_by_user_id) REFERENCES users(id)
+);
+
+INSERT OR IGNORE INTO site_settings (setting_key, setting_value)
+VALUES ('site_name', 'CF Chat');
+
+INSERT OR IGNORE INTO site_settings (setting_key, setting_value)
+VALUES ('site_icon_url', '');
+
 CREATE INDEX IF NOT EXISTS idx_messages_channel_created
   ON messages(channel_id, id DESC);
 
@@ -63,3 +89,6 @@ CREATE INDEX IF NOT EXISTS idx_channels_kind
 
 CREATE INDEX IF NOT EXISTS idx_users_username
   ON users(username);
+
+CREATE INDEX IF NOT EXISTS idx_registration_invites_active
+  ON registration_invites(created_at DESC, deleted_at, consumed_at);

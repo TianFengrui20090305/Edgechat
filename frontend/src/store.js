@@ -4,13 +4,47 @@ import api from './api.js';
 const state = reactive({
   ready: false,
   token: localStorage.getItem('cfchat.token') || '',
-  session: null
+  session: null,
+  site: {
+    siteName: 'CF Chat',
+    siteIconUrl: ''
+  }
 });
+
+function applySiteMetadata(site) {
+  const siteName = String(site?.siteName || 'CF Chat').trim() || 'CF Chat';
+  const siteIconUrl = String(site?.siteIconUrl || '').trim();
+  document.title = siteName;
+
+  let favicon = document.querySelector('link[rel="icon"]');
+  if (!favicon) {
+    favicon = document.createElement('link');
+    favicon.setAttribute('rel', 'icon');
+    document.head.appendChild(favicon);
+  }
+
+  if (siteIconUrl) {
+    favicon.setAttribute('href', siteIconUrl);
+  } else {
+    favicon.removeAttribute('href');
+  }
+}
+
+async function loadSite() {
+  try {
+    const payload = await api.getSite();
+    setSite(payload.site);
+  } catch {
+    applySiteMetadata(state.site);
+  }
+}
 
 async function initialize() {
   if (state.ready) {
     return;
   }
+
+  await loadSite();
 
   if (!state.token) {
     state.ready = true;
@@ -53,6 +87,14 @@ function setSession(session) {
   state.session = session;
 }
 
+function setSite(site) {
+  state.site = {
+    siteName: String(site?.siteName || 'CF Chat').trim() || 'CF Chat',
+    siteIconUrl: String(site?.siteIconUrl || '').trim()
+  };
+  applySiteMetadata(state.site);
+}
+
 export default {
   get ready() {
     return state.ready;
@@ -63,8 +105,13 @@ export default {
   get session() {
     return state.session;
   },
+  get site() {
+    return state.site;
+  },
   initialize,
   login,
   logout,
-  setSession
+  setSession,
+  setSite,
+  loadSite
 };

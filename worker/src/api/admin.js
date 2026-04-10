@@ -1,10 +1,10 @@
 import { hashPassword } from '../auth.js';
-import { listMessages, requireAccessibleRoom } from '../db.js';
-import { errorResponse, parseJsonRequest, sanitizeLimit } from '../utils.js';
+import { getSiteSettings, listMessages, requireAccessibleRoom, updateSiteSettings } from '../db.js';
+import { errorResponse, parseJsonRequest, randomToken, sanitizeLimit } from '../utils.js';
 
 export function registerAdminRoutes(app) {
   app.get('/api/admin/overview', async (c) => {
-    const [usersResult, channelsResult, dmsResult] = await Promise.all([
+    const [usersResult, channelsResult, dmsResult, site] = await Promise.all([
       c.env.DB.prepare(
         `SELECT
            id,
@@ -68,9 +68,12 @@ export function registerAdminRoutes(app) {
            AND c.deleted_at IS NULL
          ORDER BY c.created_at DESC`
       ).all()
+      ,
+      getSiteSettings(c.env.DB)
     ]);
 
     return c.json({
+      site,
       users: usersResult.results.map((row) => ({
         id: Number(row.id),
         username: row.username,
@@ -97,6 +100,102 @@ export function registerAdminRoutes(app) {
         messageCount: Number(row.message_count)
       }))
     });
+  });
+
+  app.get('/api/admin/site-settings', async (c) => {
+    const site = await getSiteSettings(c.env.DB);
+    return c.json({ site });
+  });
+
+  app.patch('/api/admin/site-settings', async (c) => {
+    const payload = await parseJsonRequest(c.req.raw);
+    const siteName = String(payload.siteName || '').trim();
+    const siteIconUrl = String(payload.siteIconUrl || '').trim();
+
+    if (!siteName) {
+      return errorResponse('站点名称不能为空');
+    }
+
+    const site = await updateSiteSettings(c.env.DB, { siteName, siteIconUrl });
+    return c.json({ site });
+  });
+
+  app.get('/api/admin/register-links', async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT
+         ri.id,
+         ri.token,
+         ri.note,
+         ri.created_at,
+         ri.consumed_at,
+         ri.deleted_at,
+         creator.display_name AS creator_display_name,
+         consumer.display_name AS consumer_display_name
+       FROM registration_invites ri
+       LEFT JOIN users creator ON creator.id = ri.created_by
+       LEFT JOIN users consumer ON consumer.id = ri.consumed_by_user_id
+       ORDER BY ri.created_at DESC`
+    ).all();
+
+    return c.json({
+      invites: results.map((row) => ({
+        id: Number(row.id),
+        token: row.token,
+        note: row.note || '',
+        createdAt: row.created_at,
+        consumedAt: row.consumed_at || null,
+        deletedAt: row.deleted_at || null,
+        creatorDisplayName: row.creator_display_name || '管理员',
+        consumerDisplayName: row.consumer_display_name || '',
+        isAvailable: !row.deleted_at && !row.consumed_at
+      }))
+    });
+  });
+
+  app.post('/api/admin/register-links', async (c) => {
+    const session = c.get('session');
+    const payload = await parseJsonRequest(c.req.raw);
+    const note = String(payload.note || '').trim();
+    const token = randomToken(24);
+
+    const result = await c.env.DB.prepare(
+      `INSERT INTO registration_invites (token, note, created_by)
+       VALUES (?, ?, ?)`
+    )
+      .bind(token, note, session.userId)
+      .run();
+
+    return c.json({
+      invite: {
+        id: Number(result.meta.last_row_id),
+        token,
+        note,
+        createdAt: new Date().toISOString(),
+        consumedAt: null,
+        deletedAt: null,
+        creatorDisplayName: session.displayName,
+        consumerDisplayName: '',
+        isAvailable: true
+      }
+    });
+  });
+
+  app.delete('/api/admin/register-links/:inviteId', async (c) => {
+    const inviteId = Number(c.req.param('inviteId'));
+    if (!Number.isFinite(inviteId)) {
+      return errorResponse('注册链接不存在', 404);
+    }
+
+    await c.env.DB.prepare(
+      `UPDATE registration_invites
+       SET deleted_at = CURRENT_TIMESTAMP
+       WHERE id = ?
+         AND deleted_at IS NULL`
+    )
+      .bind(inviteId)
+      .run();
+
+    return c.json({ ok: true });
   });
 
   app.get('/api/admin/users', async (c) => {

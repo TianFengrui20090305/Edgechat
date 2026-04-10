@@ -47,6 +47,9 @@ export default {
   session() {
     return request('/auth/session');
   },
+  getSite() {
+    return request('/site');
+  },
   changePassword(payload) {
     return request('/auth/change-password', {
       method: 'POST',
@@ -72,13 +75,6 @@ export default {
   },
   createGroup(payload) {
     return request('/channels', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload
-    });
-  },
-  createChannel(payload) {
-    return request('/admin/channels', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload
@@ -145,6 +141,31 @@ export default {
   adminOverview() {
     return request('/admin/overview');
   },
+  adminSiteSettings() {
+    return request('/admin/site-settings');
+  },
+  listAdminRegisterLinks() {
+    return request('/admin/register-links');
+  },
+  createAdminRegisterLink(payload) {
+    return request('/admin/register-links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+  },
+  revokeAdminRegisterLink(inviteId) {
+    return request(`/admin/register-links/${inviteId}`, {
+      method: 'DELETE'
+    });
+  },
+  updateAdminSiteSettings(payload) {
+    return request('/admin/site-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+  },
   createUser(payload) {
     return request('/admin/users', {
       method: 'POST',
@@ -194,5 +215,15 @@ export default {
       }
     });
     return request(`/admin/messages/search?${query.toString()}`);
+  },
+  getRegisterInvite(token) {
+    return request(`/register-links/${encodeURIComponent(token)}`);
+  },
+  registerWithInvite(token, payload) {
+    return request(`/register-links/${encodeURIComponent(token)}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
   }
 };
