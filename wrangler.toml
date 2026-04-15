@@ -12,7 +12,7 @@ MAX_FILE_SIZE = "20971520"
 [[d1_databases]]
 binding = "DB"
 database_name = "cfchat-db"
-database_id = "cfchat-db"
+database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
