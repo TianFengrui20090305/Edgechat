@@ -1,6 +1,7 @@
-name = "cfchat"
+# 这里的 name 建议改为 edgechat，以匹配 Pages 项目名
+name = "edgechat"
 main = "worker/src/index.js"
-compatibility_date = "2026-04-05"
+compatibility_date = "2026-04-15"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
@@ -9,18 +10,18 @@ MESSAGE_RETENTION_DAYS = "7"
 ALLOWED_FILE_TYPES = "image/,video/,application/pdf,text/"
 MAX_FILE_SIZE = "20971520"
 
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "cfchat-db"
-# database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
+[[d1_databases]]
+binding = "DB"
+database_name = "cfchat-db"
+database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
 
-# [[kv_namespaces]]
-# binding = "SESSIONS"
-# id = "177be40e8bf24f6da0ab510c04ec61fc"
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "177be40e8bf24f6da0ab510c04ec61fc"
 
-# [[r2_buckets]]
-# binding = "FILES"
-# bucket_name = "cfchat-files"
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "cfchat-files"
 
 [[durable_objects.bindings]]
 name = "CHANNEL_ROOM"
@@ -40,5 +41,4 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/files/*"]
 
 [triggers]
-# Cloudflare Cron 按 UTC 执行；19:00 UTC = 北京时间每天 03:00
 crons = ["0 19 * * *"]
