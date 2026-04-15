@@ -16,7 +16,7 @@ database_id = "cfchat-db"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "cfchat-sessions"
+id = "177be40e8bf24f6da0ab510c04ec61fc"
 
 [[r2_buckets]]
 binding = "FILES"
