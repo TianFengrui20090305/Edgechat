@@ -8,8 +8,8 @@
     "build:frontend": "vite build --config frontend/vite.config.js",
     "build": "npm run build:frontend",
     "check": "npm run build",
-    "deploy": "npm run build && wrangler deploy",
-    "d1:apply": "wrangler d1 execute cfchat-db --file ./worker/schema.sql"
+    "deploy": "npm run build && wrangler deploy worker/src/index.js",
+    "d1:apply": "wrangler d1 execute cfchat-db --remote --file ./worker/schema.sql"
   },
   "dependencies": {
     "hono": "^4.8.3",
