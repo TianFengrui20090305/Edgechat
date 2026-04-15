@@ -9,18 +9,18 @@ MESSAGE_RETENTION_DAYS = "7"
 ALLOWED_FILE_TYPES = "image/,video/,application/pdf,text/"
 MAX_FILE_SIZE = "20971520"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "cfchat-db"
-database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "cfchat-db"
+# database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
 
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "177be40e8bf24f6da0ab510c04ec61fc"
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "177be40e8bf24f6da0ab510c04ec61fc"
 
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "cfchat-files"
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "cfchat-files"
 
 [[durable_objects.bindings]]
 name = "CHANNEL_ROOM"
