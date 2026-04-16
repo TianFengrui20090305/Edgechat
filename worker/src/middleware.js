@@ -12,8 +12,21 @@ function extractToken(request) {
 }
 
 export async function authMiddleware(c, next) {
+  const path = new URL(c.req.url).pathname;
+
+  // ✅ 在这里加（关键）
+  if (
+    path === '/api/health' ||
+    path === '/api/site' ||
+    path === '/api/auth/login' ||
+    path.startsWith('/api/register-links/')
+  ) {
+    return await next();
+  }
+
   const token = extractToken(c.req.raw);
   const session = await getSession(c.env, token);
+
   if (!session) {
     return errorResponse('请先登录', 401);
   }
