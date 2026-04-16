@@ -1,5 +1,5 @@
 # 这里的 name 建议改为 edgechat，以匹配 Pages 项目名
-name = "edgechat"
+name = "freechat"
 main = "worker/src/index.js"
 compatibility_date = "2026-04-15"
 compatibility_flags = ["nodejs_compat"]
