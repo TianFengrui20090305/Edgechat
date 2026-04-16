@@ -143,7 +143,22 @@ app.post('/api/auth/login', async (c) => {
   });
 });
 
-app.use('/api/*', authMiddleware);
+app.use('/api/*', async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+
+  // ✅ 白名单（不需要登录）
+  if (
+    path === '/api/health' ||
+    path === '/api/site' ||
+    path === '/api/auth/login' ||
+    path.startsWith('/api/register-links/')
+  ) {
+    return next();
+  }
+
+  // ❌ 其他接口才需要登录
+  return authMiddleware(c, next);
+});
 
 app.get('/api/auth/session', async (c) => {
   const session = c.get('session');
