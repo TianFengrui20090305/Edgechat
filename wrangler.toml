@@ -27,7 +27,7 @@ id = "177be40e8bf24f6da0ab510c04ec61fc"
 [[r2_buckets]]
 binding = "FILES"
 # Legacy R2 bucket name kept intentionally; code/docs use Edgechat branding.
-bucket_name = "cf-files"
+bucket_name = "cfchat-files"
 
 [[durable_objects.bindings]]
 name = "CHANNEL_ROOM"
