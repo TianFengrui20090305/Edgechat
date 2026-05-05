@@ -7,6 +7,12 @@
 EdgeChat 是一个部署在 Cloudflare 上的聊天系统，提供账号体系、公开群组、私有群组、私信、实时消息、文件上传和管理员后台，目标是在 Cloudflare 生态中以较低运维成本实现一套可直接落地的站内 IM。
 
 本项目采用 `GPL-3.0-or-later` 协议，详见 [LICENSE](LICENSE)。
+<table>
+  <tr>
+    <td><img width="546" src="https://github.com/user-attachments/assets/60425548-e675-4402-947b-83ddd2860eec" /></td>
+    <td><img width="546" src="https://github.com/user-attachments/assets/2ba7848b-dd6f-4f90-bd45-b660700bc30b" /></td>
+  </tr>
+</table>
 
 ## 功能特性
 
