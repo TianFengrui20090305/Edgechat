@@ -1,0 +1,51 @@
+# Legacy Worker service name kept to avoid creating a new production Worker during rename cleanup.
+name = "cfchat"
+main = "worker/src/index.js"
+compatibility_date = "2026-04-05"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ADMIN_USERNAMES = "admin"
+MESSAGE_RETENTION_DAYS = "7"
+SOFT_DELETE_RETENTION_DAYS = "60"
+GC_BATCH_SIZE = "500"
+GC_MAX_BATCHES_PER_RUN = "20"
+R2_DELETE_MAX_RETRY = "8"
+ALLOWED_FILE_TYPES = "image/,video/,application/pdf,text/"
+MAX_FILE_SIZE = "20971520"
+
+[[d1_databases]]
+binding = "DB"
+# Legacy D1 resource name kept intentionally; do not rename without a data migration plan.
+database_name = "freechat_db"
+database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "177be40e8bf24f6da0ab510c04ec61fc"
+
+[[r2_buckets]]
+binding = "FILES"
+# Legacy R2 bucket name kept intentionally; code/docs use Edgechat branding.
+bucket_name = "freechat-files"
+
+[[durable_objects.bindings]]
+name = "CHANNEL_ROOM"
+class_name = "ChannelRoom"
+
+[[durable_objects.bindings]]
+name = "SCHEDULER"
+class_name = "Scheduler"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChannelRoom", "Scheduler"]
+
+[assets]
+directory = "./frontend/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/files/*"]
+
+# 已关闭自动消息清理
+# [triggers]
+# crons = ["0 19 * * *"]
