@@ -17,7 +17,7 @@ MAX_FILE_SIZE = "20971520"
 [[d1_databases]]
 binding = "DB"
 # Legacy D1 resource name kept intentionally; do not rename without a data migration plan.
-database_name = "freechat_db"
+database_name = "freechat"
 database_id = "32462365-18b0-4c19-9a0f-5b212c303c13"
 
 [[kv_namespaces]]
@@ -27,7 +27,7 @@ id = "177be40e8bf24f6da0ab510c04ec61fc"
 [[r2_buckets]]
 binding = "FILES"
 # Legacy R2 bucket name kept intentionally; code/docs use Edgechat branding.
-bucket_name = "freechat-files"
+bucket_name = "cf-files"
 
 [[durable_objects.bindings]]
 name = "CHANNEL_ROOM"
